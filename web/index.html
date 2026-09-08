@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LightSaber — Head Audio + Saber Prototype</title>
+    <link rel="stylesheet" href="/static/styles.css?v=pipeline-v1" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">LOCAL FACE + POSE + IMU TEST</p>
+        <h1>Head → Audio + Saber</h1>
+        <p class="intro">Face tracking keeps the world-fixed HRTF source stable. Pose Landmarker locks the handle on your wrist; the iPhone IMU fills the gaps between camera frames and while the hand is out of view. Blade orientation is IMU-only.</p>
+      </header>
+
+      <section class="controls" aria-label="Controls">
+        <button id="audioButton" class="primary">Start audio</button>
+        <button id="calibrateButton">Set forward (C)</button>
+        <button id="thresholdButton">Threshold clicks: off</button>
+        <label>Threshold <output id="thresholdOut">20°</output><input id="threshold" type="range" min="5" max="60" value="20" /></label>
+        <label>Prediction <output id="predictionOut">0 ms</output><input id="prediction" type="range" min="0" max="80" step="5" value="0" /></label>
+        <label class="check"><input id="invert" type="checkbox" /> Mirror display + audio</label>
+        <button id="sourceCalibrateButton">Set source from head</button>
+        <button id="saberCalibrateButton">Set saber reference</button>
+        <button id="saberButton">Saber travel test: off</button>
+        <label>Saber travel <output id="saberThresholdOut">12 cm</output><input id="saberThreshold" type="range" min="5" max="30" value="12" /></label>
+        <button id="hapticButton">Test iPhone haptic</button>
+        <button id="downloadButton" disabled>Download trials CSV</button>
+      </section>
+
+      <p id="notice" class="notice">Connecting to the local tracker…</p>
+
+      <section class="cards" aria-label="Live tracker telemetry">
+        <article><span>Tracker status</span><strong id="tagStatus">waiting</strong><small id="margin">—</small></article>
+        <article><span>Head yaw</span><strong id="yaw">—</strong><small id="yawHint">calibrate while facing camera</small></article>
+        <article><span>Tracker rate</span><strong id="fps">—</strong><small id="detect">detect —</small></article>
+        <article><span>Audio device</span><strong id="audioLatency">not started</strong><small id="audioDetail">base — · output —</small></article>
+        <article><span>Saber pose</span><strong id="saberStatus">waiting</strong><small id="saberPose">wrist + iPhone IMU</small><small id="saberRelative">relative to head —</small></article>
+        <article><span>iPhone IMU</span><strong id="imuStatus">waiting</strong><small id="imuDetail">free ZIG SIM on the same Wi-Fi</small></article>
+      </section>
+
+      <figure class="camera-panel">
+        <figcaption><span>Camera preview</span><small>12 Hz debug stream — not used by audio timing</small></figcaption>
+        <img id="cameraPreview" src="/preview.mjpg" alt="Live Mac camera preview with face and pose wrist overlays" />
+      </figure>
+
+      <section class="scene scene-3d" aria-label="Spatial audio scene">
+        <div class="world-label">3D WORLD <small>from behind you, facing the Mac · drag to orbit · not mirrored</small></div>
+        <canvas id="worldCanvas" width="1100" height="480"></canvas>
+        <p id="saberWorldLabel" class="world-saber-caption">waiting for iPhone IMU</p>
+        <div id="eventFlash" class="event-flash" aria-live="polite">CLICK SCHEDULED</div>
+      </section>
+
+      <section class="measurement saber-measurement">
+        <h2>Saber from wrist + iPhone IMU</h2>
+        <p>The phone is the saber handle. Pose Landmarker tracks the <strong>wrist</strong> in the same camera frame as the face. Between slow camera frames — and when the wrist leaves the picture — IMU linear acceleration coasts the handle (damped, clamped to arm reach). The blade is the <strong>top of the phone</strong> (earpiece / +Y). Sit far enough that shoulders and the holding hand stay in the Mac camera when you can. Lay the phone flat, top toward the Mac, then click <em>Set saber reference</em> so accel can be rotated into the room.</p>
+        <div class="formula"><span>Pose wrist</span><b>+</b><span>IMU coast</span><b>→</b><span>handle xyz</span><b>  ·  </b><span>gyro / quaternion</span><b>→</b><span>blade</span></div>
+        <dl>
+          <div><dt>Handle from wrist</dt><dd id="saberMotion">—</dd></div>
+          <div><dt>Camera → audio estimate</dt><dd id="saberLatency">—</dd></div>
+          <div><dt>IMU angular rate</dt><dd id="imuOmega">—</dd></div>
+          <div><dt>Haptic</dt><dd id="hapticTime">off</dd></div>
+        </dl>
+        <small>IMU translation is complementary, not ARKit. Recalibrate saber orientation if yaw drifts. Enable GRAVITY in ZIG SIM so acceleration can drop gravity before integrating.</small>
+      </section>
+
+      <section class="measurement">
+        <h2>Observable software path</h2>
+        <p>This is a stage-timing estimate from the <em>captured frame</em> to estimated device output. It excludes the webcam sensor/ISP frame age and is not a physical motion-to-sound measurement.</p>
+        <div class="formula"><span>capture → detect</span><b>+</b><span>local WebSocket</span><b>+</b><span>browser schedule</span><b>+</b><span>Web Audio reported output</span></div>
+        <dl>
+          <div><dt>Last event estimate</dt><dd id="eventTotal">—</dd></div>
+          <div><dt>Frame → detection</dt><dd id="eventDetect">—</dd></div>
+          <div><dt>Local transport*</dt><dd id="eventTransport">—</dd></div>
+          <div><dt>Audio estimate</dt><dd id="eventAudio">—</dd></div>
+        </dl>
+        <small>*Estimated with an NTP-style clock sync inside one Mac. Treat sub-millisecond values as approximate.</small>
+      </section>
+
+      <section class="trials">
+        <h2>Threshold-click trials</h2>
+        <p>For a true end-to-end measurement, put one wired earbud beside a phone microphone and film the face plus the earbud at 240 fps. Compare visible threshold crossing to click onset: one 240-fps frame is 4.17 ms.</p>
+        <table>
+          <thead><tr><th>#</th><th>Yaw</th><th>Frame→detect</th><th>Transport*</th><th>Audio reported</th><th>Observable estimate</th></tr></thead>
+          <tbody id="trialRows"><tr class="empty"><td colspan="6">Enable threshold clicks, calibrate, then turn right past the threshold.</td></tr></tbody>
+        </table>
+      </section>
+
+      <details>
+        <summary>How to use this test</summary>
+        <ol>
+          <li>Use wired headphones first. Start audio, then permit autoplay if your browser asks.</li>
+          <li>Face the Mac camera and click <em>Set forward</em> while facing forward. The source is initially placed at your displayed right-front and then fixed to the Mac camera; use <em>Set source from head</em> to reset that initial placement. <em>Mirror display + audio</em> mirrors the webcam preview and HRTF. World is a room view from behind you looking at the Mac, so your left/right matches the scene.</li>
+          <li>Enable threshold clicks, return below the threshold, and turn right past it. Export the head-audio trial table when done.</li>
+          <li>Hold the iPhone as the saber. Sit back until the camera sees your shoulders and the holding hand (cyan skeleton + wrist dot). In ZIG SIM enable <strong>GYRO</strong>, <strong>QUATERNION</strong>, and <strong>GRAVITY</strong>. Restart <code>./run.zsh</code>. Lay the phone flat, top toward the Mac, then click <em>Set saber reference</em> (this also lets acceleration map into the room). The handle follows the wrist at camera rate and IMU-coasts between frames or when the hand leaves the picture; the blade follows IMU orientation.</li>
+          <li>The Uno/MPU6050 path is optional legacy: <code>./run.zsh --serial /dev/cu.usbmodem…</code>.</li>
+          <li>Repeat with Bluetooth headphones without changing any software settings; compare both the browser estimate and the phone-video measurement.</li>
+        </ol>
+      </details>
+    </main>
+    <script src="/static/app.js?v=pipeline-v1"></script>
+  </body>
+</html>

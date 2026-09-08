@@ -1,0 +1,24 @@
+# Virtualenv and Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Local secrets and editor junk
+.env
+.env.*
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Runtime cache and downloaded MediaPipe models
+.cache/
+assets/*.task
+assets/*.task.tmp
+
+# Trial / measurement exports
+*.csv
