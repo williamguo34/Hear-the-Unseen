@@ -1,19 +1,5 @@
 {
   "dependencies": {
-    "com.apple.unityplugin.core": {
-      "version": "file:com.apple.unityplugin.core-3.2.0.tgz",
-      "depth": 0,
-      "source": "local-tarball",
-      "dependencies": {}
-    },
-    "com.apple.unityplugin.phase": {
-      "version": "file:com.apple.unityplugin.phase-1.2.7.tgz",
-      "depth": 0,
-      "source": "local-tarball",
-      "dependencies": {
-        "com.apple.unityplugin.core": "3.2.0"
-      }
-    },
     "com.unity.ugui": {
       "version": "1.0.0",
       "depth": 0,

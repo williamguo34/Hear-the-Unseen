@@ -42,10 +42,10 @@ unity/*.booproj
 unity/*.svd
 unity/.vs/
 
-# Apple Unity plug-ins: built from upstream source, not committed.
-# See unity/fetch-apple-plugins.zsh
-unity/Packages/*.tgz
-unity/Assets/Apple Plug-In Support/
+# Steam Audio Unity plugin: fetched from GitHub Releases, not committed.
+# See unity/fetch-steam-audio.zsh
+unity/Assets/Plugins/SteamAudio/
+unity/Assets/Plugins/SteamAudio.meta
 
 # Editor batch logs
 unity-create.log

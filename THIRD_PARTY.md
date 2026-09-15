@@ -11,15 +11,14 @@ How each dependency is obtained. Game assets that were selected or mixed live in
 - Fetch: `./run.zsh` (pinned `float16/1` URLs + SHA-256)
 - Files: `assets/face_landmarker.task`, `assets/pose_landmarker_lite.task` (gitignored)
 
-### Apple.Core 3.2.0 and Apple.PHASE 1.2.7
+### Steam Audio Unity 4.8.1
 
-- Publisher: Apple
-- Source: https://github.com/apple/unityplugins (Apache 2.0)
-- Nested: xNode (MIT), UnityPickers (MIT)
-- Fetch: `unity/fetch-apple-plugins.zsh` builds tarballs from pinned commit `17f601bf68fc9867ee4c4f0f14870ca55f28c798`
-- Apple does not attach these `.tgz` files to GitHub Releases; the official install is clone + `build.py`
-- Output: `unity/Packages/com.apple.unityplugin.*.tgz` (gitignored)
-- Unity then copies native Play Mode libraries into `Assets/Apple Plug-In Support/` (also gitignored)
+- Publisher: Valve
+- License: [Apache 2.0](https://github.com/ValveSoftware/steam-audio/blob/master/LICENSE)
+- Source: https://github.com/ValveSoftware/steam-audio/releases/tag/v4.8.1
+- Fetch: `unity/fetch-steam-audio.zsh` (pinned `steamaudio_unity_4.8.1.zip` URL + SHA-256)
+- Output: `unity/Assets/Plugins/SteamAudio/` (gitignored)
+- Product use: Direct Binaural only (no reflections, reverb, occlusion, or pathing)
 
 ## In git (project content, with attribution)
 
@@ -43,4 +42,4 @@ Unity built-in modules: `unity/Packages/manifest.json` (resolved by Unity Hub).
 
 ## Not this repo
 
-Player builds (`.app`, installers) belong on GitHub Releases when you ship one. Do not attach Apple or MediaPipe binaries to Releases.
+Player builds (`.app`, installers) belong on GitHub Releases when you ship one. Do not attach Steam Audio or MediaPipe binaries to Releases.

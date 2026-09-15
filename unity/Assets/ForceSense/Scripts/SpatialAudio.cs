@@ -1,22 +1,30 @@
-using Apple.PHASE;
+using SteamAudio;
 using UnityEngine;
 
 namespace ForceSense
 {
     public static class SpatialAudio
     {
-        public static PHASEListener ConfigureListener(GameObject head)
+        public static void ConfigureListener(GameObject head)
         {
             if (head.GetComponent<AudioListener>() == null)
                 head.AddComponent<AudioListener>();
 
-            var listener = head.GetComponent<PHASEListener>();
+            var listener = head.GetComponent<SteamAudioListener>();
             if (listener == null)
-                listener = head.AddComponent<PHASEListener>();
+                listener = head.AddComponent<SteamAudioListener>();
+            listener.applyReverb = false;
 
-            listener.SetAutomaticListenerHeadTracking(false);
-            listener.SetReverbPreset(Helpers.ReverbPresets.None);
-            return listener;
+            if (head.GetComponent<HeadListenerAnchor>() == null)
+                head.AddComponent<HeadListenerAnchor>();
+
+            BindListener(head.transform);
+        }
+
+        public static void BindListener(Transform head)
+        {
+            if (head == null || SteamAudioManager.Singleton == null) return;
+            SteamAudioManager.NotifyAudioListenerChangedTo(head);
         }
 
         public static void ConfigurePointSource(AudioSource source, bool filterBeforeSpatialize = false)
@@ -30,6 +38,21 @@ namespace ForceSense
             source.maxDistance = 12f;
             source.playOnAwake = false;
             source.reverbZoneMix = 0f;
+
+            var steam = source.GetComponent<SteamAudioSource>();
+            if (steam == null)
+                steam = source.gameObject.AddComponent<SteamAudioSource>();
+            steam.directBinaural = true;
+            steam.interpolation = HRTFInterpolation.Bilinear;
+            steam.perspectiveCorrection = false;
+            steam.distanceAttenuation = false;
+            steam.airAbsorption = false;
+            steam.directivity = false;
+            steam.occlusion = false;
+            steam.transmission = false;
+            steam.reflections = false;
+            steam.pathing = false;
+            steam.directMixLevel = 1f;
         }
 
         public static AudioSource LoopOn(GameObject host, AudioClip clip, float volume, bool filterBeforeSpatialize = false)
@@ -56,5 +79,11 @@ namespace ForceSense
             source.Play();
             Object.Destroy(go, clip.length / Mathf.Max(0.08f, pitch) + 0.05f);
         }
+    }
+
+    sealed class HeadListenerAnchor : MonoBehaviour
+    {
+        void OnEnable() => SpatialAudio.BindListener(transform);
+        void Start() => SpatialAudio.BindListener(transform);
     }
 }

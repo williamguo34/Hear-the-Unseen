@@ -34,6 +34,7 @@ namespace ForceSense
             Object.Destroy(headGo.GetComponent<Collider>());
             SaberVisual.DressHead(headGo);
             var head = headGo.AddComponent<TrackedHeadController>();
+            StripAllAudioListeners();
             SpatialAudio.ConfigureListener(headGo);
 
             var saberGo = new GameObject("Saber");
@@ -95,7 +96,7 @@ namespace ForceSense
                 go.tag = "MainCamera";
             }
             var listener = camera.GetComponent<AudioListener>();
-            if (listener != null) Object.Destroy(listener);
+            if (listener != null) Object.DestroyImmediate(listener);
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = VisualTheme.Void;
             camera.allowHDR = true;
@@ -109,6 +110,13 @@ namespace ForceSense
             var follow = camera.GetComponent<SpectatorFollow>();
             if (follow == null) follow = camera.gameObject.AddComponent<SpectatorFollow>();
             follow.Head = head;
+        }
+
+        static void StripAllAudioListeners()
+        {
+            var listeners = Object.FindObjectsOfType<AudioListener>();
+            for (var i = 0; i < listeners.Length; i++)
+                Object.DestroyImmediate(listeners[i]);
         }
     }
 

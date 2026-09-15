@@ -3,7 +3,7 @@ using UnityEngine;
 namespace ForceSense
 {
     /// <summary>
-    /// Mac camera metres (Y down) → Unity / PHASE (Y up). M = diag(1,-1,1).
+    /// Mac camera metres (Y down) → Unity / Steam Audio (Y up). M = diag(1,-1,1).
     /// Do not convert quaternions across this reflection.
     /// </summary>
     public static class CameraSpace

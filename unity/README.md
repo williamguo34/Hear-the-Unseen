@@ -1,17 +1,17 @@
 # ForceSense Unity
 
-Unity 2022.3 project for the ForceSense game. Tracking stays in Python; this project is the world, PHASE-ready audio, collision, and rounds.
+Unity 2022.3 project for the ForceSense game. Tracking stays in Python; this project is the world, Steam Audio binaural, collision, and rounds.
 
 ## Run
 
-1. Build Apple.Core + Apple.PHASE from upstream (once). Apple does not publish these tarballs as Release assets.
+1. Fetch Steam Audio Unity **4.8.1** (once). Valve publishes this zip on GitHub Releases.
 
 ```zsh
-chmod +x fetch-apple-plugins.zsh
-./fetch-apple-plugins.zsh
+chmod +x fetch-steam-audio.zsh
+./fetch-steam-audio.zsh
 ```
 
-This clones a pinned commit of [apple/unityplugins](https://github.com/apple/unityplugins), runs `build.py`, and writes `Packages/com.apple.unityplugin.*.tgz`. Those files and `Assets/Apple Plug-In Support/` stay gitignored. Skip this step if the two tarballs are already in `Packages/`.
+This downloads a pinned SHA-256 of `steamaudio_unity_4.8.1.zip` and unpacks `SteamAudio.unitypackage` into `Assets/Plugins/SteamAudio/` (gitignored). Skip this step if that folder is already present.
 
 2. Start tracking (same as before):
 
@@ -37,23 +37,25 @@ Runtime build is a dark metallic training chamber (origin still = Mac camera), a
 ## Layout
 
 - Origin = Mac camera (Y-up after `(x, y, z) → (x, -y, z)`).
-- `Head` has the only `AudioListener`. `PHASEListener` / `PHASESource` are added automatically if `Apple.PHASE` is imported.
+- `Head` has the only `AudioListener` plus a `SteamAudioListener`. Incoming, saber, and feedback sources are `AudioSource` + `SteamAudioSource`.
 - Layered mono clips live under `Assets/ForceSense/Resources/Audio/{Saber,Projectile,Block,Hit,Dodge}/`.
 - Python sends `unity_pose` to UDP `8766`. Unity sends `calibrate_forward`, `calibrate_saber_reference`, `vibrate` to `8767`.
 
-## PHASE
+## Steam Audio
 
-Apple.Core `3.2.0` and Apple.PHASE `1.2.7` are local tarballs referenced from `Packages/manifest.json` (`file:com.apple.unityplugin.*.tgz`). They are built by `fetch-apple-plugins.zsh`, not committed. Audio settings use **PHASE Spatializer**. Third-party inventory: [`../THIRD_PARTY.md`](../THIRD_PARTY.md).
+Steam Audio Unity `4.8.1` is fetched by `fetch-steam-audio.zsh`, not committed. Audio settings use **Steam Audio Spatializer** and **Steam Audio Ambisonic Decoder**. Third-party inventory: [`../THIRD_PARTY.md`](../THIRD_PARTY.md).
 
 On Play:
 
-- `Head` gets the only `AudioListener` and a `PHASEListener`
-- automatic head tracking is off
-- global reverb preset is `None`
+- Spectator / Main Camera `AudioListener` is removed immediately; `Head` is the only listener
+- `Head` gets `AudioListener` + `SteamAudioListener` (`applyReverb = false`)
+- Steam Audio is told the listener is the Head transform (`NotifyAudioListenerChangedTo`) — Python head pose is the only listener truth
 - saber hum + whoosh ride the saber transform; incoming rides the projectile; BLOCK / HIT / DODGE one-shots play at the real clash / body / pass-by point
-- all gameplay clips are mono; PHASE spatializes them (`spatialize = true`, no baked stereo / reverb)
-- incoming gain, brightness, and modulation follow distance to the head, not just PHASE rolloff
+- all gameplay clips are mono; Steam Audio Direct Binaural spatializes them (`spatialize = true`, bilinear HRTF interpolation, no baked stereo / reverb)
+- reflections, occlusion, transmission, pathing, air absorption, and perspective correction stay off
+- distance uses Unity Linear rolloff (`0.25–12 m`); Steam Audio distance attenuation is off so the two do not stack
+- incoming gain, brightness, and modulation follow distance to the head, not just rolloff
 - whoosh crossfades from IMU `angularSpeedRadS`
 - BLOCK haptic fires with the attack transient, not after the tail
 
-Do not turn on PHASE automatic head tracking. Head pose from Python is the only listener truth.
+Do not enable Steam Audio perspective correction or listener-centric reverb. Head pose from Python is the only listener truth.

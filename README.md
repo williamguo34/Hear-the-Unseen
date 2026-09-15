@@ -8,7 +8,7 @@ The Python + `web/` stack remains a feasibility test for tracking and world-lock
 Mac camera → MediaPipe Face Landmarker → head pose → local WebSocket → Web Audio HRTF → headphones
 Mac camera → Pose Landmarker wrist + iPhone IMU coast → saber handle
 iPhone IMU quaternion / gyro → blade orientation
-Python fused pose → UDP 8766 → Unity PHASEListener / game
+Python fused pose → UDP 8766 → Unity SteamAudioListener / game
 ```
 
 ## What is included
@@ -16,7 +16,7 @@ Python fused pose → UDP 8766 → Unity PHASEListener / game
 - `server.py` — webcam acquisition, Face + Pose Landmarker, iPhone OSC IMU, local WebSocket, and Unity UDP pose.
 - `web/` — a no-build browser HRTF renderer, camera preview, 3D World, live diagnostics, prediction comparison, threshold trials, and CSV export.
 - `run.zsh` — setup and run script; downloads pinned MediaPipe models.
-- `unity/` — ForceSense game. Apple PHASE tarballs are built by `unity/fetch-apple-plugins.zsh`, not stored in git.
+- `unity/` — ForceSense game. Steam Audio is fetched by `unity/fetch-steam-audio.zsh`, not stored in git.
 - `THIRD_PARTY.md` — where each third-party file comes from.
 - `requirements-imu.txt` — optional serial dependency, installed only when `--serial` is used.
 - `touchosc/LightSaber.tosc` — iPhone layout: streams gyro/accel over OSC and vibrates on `/vibrate`.
@@ -34,7 +34,7 @@ chmod +x run.zsh
 
 The first run creates `.venv`, installs the Python packages, and downloads the Face and Pose Landmarker models (`float16/1`, checksummed). Later runs reuse them. Open [http://127.0.0.1:8765](http://127.0.0.1:8765) in Chrome or Safari. macOS may ask Terminal/Python for Camera access; allow it. If the browser asks to start audio, click **Start audio**.
 
-To open the Unity game, first build Apple's plug-ins (once; needs Xcode), then open `unity/` in Unity Hub. See [`unity/README.md`](unity/README.md).
+To open the Unity game, first fetch Steam Audio (once), then open `unity/` in Unity Hub. See [`unity/README.md`](unity/README.md).
 
 The server matches the Mac built-in camera by name each launch (FaceTime / Built-in / MacBook) and skips Continuity Camera, iPhone, and Desk View. Camera indices change when an iPhone appears, so it does not lock to `0`. Override with `./run.zsh --camera MacBook` or inspect the list with `./run.zsh --list-cameras`. Do **not** use the iPhone as Continuity Camera while it is the saber IMU.
 
