@@ -225,6 +225,85 @@ def _unit(vector: np.ndarray) -> np.ndarray:
     return vector / (norm if norm > 1e-9 else 1.0)
 
 
+def vec3(values: np.ndarray) -> dict[str, float]:
+    return {"x": round(float(values[0]), 4), "y": round(float(values[1]), 4), "z": round(float(values[2]), 4)}
+
+
+def rotation_about_camera_y(radians: float) -> np.ndarray:
+    cosine, sine = math.cos(radians), math.sin(radians)
+    return np.array([[cosine, 0.0, sine], [0.0, 1.0, 0.0], [-sine, 0.0, cosine]], dtype=float)
+
+
+def calibrated_head_axes(face_rotation: np.ndarray, yaw_zero_deg: float) -> tuple[np.ndarray, np.ndarray, float]:
+    """Yaw-calibrated forward/up in camera metres. Preserves pitch and roll."""
+    forward_raw = _unit(face_rotation[:, 2])
+    up_raw = _unit(face_rotation[:, 1])
+    raw_yaw = math.atan2(float(forward_raw[0]), float(forward_raw[2]))
+    stripped_forward = rotation_about_camera_y(-raw_yaw) @ forward_raw
+    stripped_up = rotation_about_camera_y(-raw_yaw) @ up_raw
+    if stripped_forward[2] > 0.0:
+        stripped_forward = rotation_about_camera_y(math.pi) @ stripped_forward
+        stripped_up = rotation_about_camera_y(math.pi) @ stripped_up
+    yaw_rad = math.radians(normalize_degrees(math.degrees(raw_yaw) - yaw_zero_deg))
+    forward = _unit(rotation_about_camera_y(-yaw_rad) @ stripped_forward)
+    up = rotation_about_camera_y(-yaw_rad) @ stripped_up
+    up = up - float(np.dot(up, forward)) * forward
+    if float(np.linalg.norm(up)) < 1e-6:
+        up = np.array([0.0, -1.0, 0.0]) - float(np.dot(np.array([0.0, -1.0, 0.0]), forward)) * forward
+    up = _unit(up)
+    if float(np.dot(up, np.array([0.0, -1.0, 0.0]))) < 0.0:
+        up = -up
+    return forward, up, yaw_rad
+
+
+class UnityPoseHub:
+    """Local UDP: Python → Unity pose, Unity → Python commands."""
+
+    def __init__(self, dest_host: str, dest_port: int, command_port: int) -> None:
+        self.dest = (dest_host, dest_port)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.command_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.command_sock.bind(("127.0.0.1", command_port))
+        self.command_sock.settimeout(0.25)
+        self._on_command: Optional[Any] = None
+        self._running = False
+        self._thread: Optional[threading.Thread] = None
+
+    def send(self, message: dict[str, Any]) -> None:
+        payload = json.dumps(message, separators=(",", ":")).encode("utf-8")
+        try:
+            self.sock.sendto(payload, self.dest)
+        except OSError:
+            pass
+
+    def start(self, on_command: Any) -> None:
+        self._on_command = on_command
+        self._running = True
+        self._thread = threading.Thread(target=self._listen, name="unity-commands", daemon=True)
+        self._thread.start()
+
+    def _listen(self) -> None:
+        while self._running:
+            try:
+                data, _addr = self.command_sock.recvfrom(4096)
+            except (TimeoutError, socket.timeout, OSError):
+                continue
+            try:
+                message = json.loads(data.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                continue
+            if self._on_command is not None:
+                self._on_command(message)
+
+    def close(self) -> None:
+        self._running = False
+        try:
+            self.command_sock.close()
+            self.sock.close()
+        except OSError:
+            pass
+
+
 # Core Motion +Y is the top of the iPhone (earpiece). That is the blade.
 IPHONE_BLADE_DEVICE = np.array([0.0, 1.0, 0.0])
 
@@ -722,6 +801,13 @@ class Tracker:
         # Calibrated blade = iPhone top, pointing at the camera at click time.
         self.saber_reference_rotation: Optional[np.ndarray] = None
         self.saber_device_to_camera0: Optional[np.ndarray] = None
+        self.forward_set = False
+        self.last_head_forward: Optional[np.ndarray] = None
+        self.last_head_up: Optional[np.ndarray] = None
+        self.last_yaw_rad = 0.0
+        self.last_head_quality = 0.0
+        self.last_metrics: dict[str, Any] = {"fps": 0.0, "detectMs": 0.0, "droppedCaptureFrames": 0}
+        self.unity_hub = UnityPoseHub(args.unity_host, args.unity_port, args.unity_command_port)
         self.loop: Optional[asyncio.AbstractEventLoop] = None
         self.preview_subscribers = 0
         self._frame_condition = threading.Condition()
@@ -915,6 +1001,7 @@ class Tracker:
         if received_ms - self.last_imu_telemetry_ms >= 8.0:
             self.last_imu_telemetry_ms = received_ms
             self.emit_threadsafe({"type": "imu", "imu": self.imu, "saber": self.latest_saber})
+            self.publish_unity_pose()
 
     def imu_fresh(self) -> bool:
         return self.imu is not None and now_ms() - float(self.imu["receivedMs"]) <= 800.0
@@ -1113,6 +1200,7 @@ class Tracker:
             "positionM": position,
             "orientation": rotation_to_euler_degrees(R_cam),
             "bladeAxis": {"x": round(float(blade_axis[0]), 4), "y": round(float(blade_axis[1]), 4), "z": round(float(blade_axis[2]), 4)},
+            "bladeUpCam": vec3(self.blade_up_cam(blade_axis)),
             "bladeReferenceSet": self.saber_reference_rotation is not None,
         }
         if self.last_wrist_name and wrist_age is not None and wrist_age <= 2500.0:
@@ -1127,6 +1215,67 @@ class Tracker:
                     "z": round(float(relative[2]), 4),
                 }
         return saber
+
+    def blade_up_cam(self, blade_axis: np.ndarray) -> np.ndarray:
+        room_up = np.array([0.0, -1.0, 0.0])
+        projected = room_up - float(np.dot(room_up, blade_axis)) * blade_axis
+        if float(np.linalg.norm(projected)) < 0.05 and self.latest_saber_rotation is not None:
+            projected = self.latest_saber_rotation @ np.array([1.0, 0.0, 0.0])
+            projected = projected - float(np.dot(projected, blade_axis)) * blade_axis
+        return _unit(projected)
+
+    def build_unity_pose(self) -> dict[str, Any]:
+        head_age = None if self.last_head_pose_ms is None else now_ms() - self.last_head_pose_ms
+        head_valid = (
+            self.last_face_position is not None
+            and self.last_head_forward is not None
+            and self.last_head_up is not None
+            and head_age is not None
+            and head_age <= 400.0
+        )
+        saber = self.latest_saber
+        saber_valid = bool(saber) and saber.get("positionM") is not None
+        return {
+            "type": "unity_pose",
+            "timestampMs": round(now_ms(), 3),
+            "head": {
+                "positionCamM": vec3(self.last_face_position) if self.last_face_position is not None else {"x": 0.0, "y": 0.0, "z": 0.0},
+                "forwardCam": vec3(self.last_head_forward) if self.last_head_forward is not None else {"x": 0.0, "y": 0.0, "z": -1.0},
+                "upCam": vec3(self.last_head_up) if self.last_head_up is not None else {"x": 0.0, "y": -1.0, "z": 0.0},
+                "yawRad": round(self.last_yaw_rad, 5),
+                "valid": head_valid,
+                "quality": self.last_head_quality,
+            },
+            "saber": {
+                "handlePositionCamM": saber["positionM"] if saber_valid else {"x": 0.0, "y": 0.0, "z": 0.0},
+                "bladeAxisCam": saber.get("bladeAxis", {"x": 0.0, "y": 0.0, "z": -1.0}) if saber_valid else {"x": 0.0, "y": 0.0, "z": -1.0},
+                "bladeUpCam": saber.get("bladeUpCam", {"x": 1.0, "y": 0.0, "z": 0.0}) if saber_valid else {"x": 1.0, "y": 0.0, "z": 0.0},
+                "angularSpeedRadS": round(float(self.imu["omegaDegS"]) * math.pi / 180.0, 4) if self.imu else 0.0,
+                "positionSource": saber.get("positionSource", "") if saber_valid else "",
+                "relativeToHeadM": saber.get("relativeToHeadM", {"x": 0.0, "y": 0.0, "z": 0.0}) if saber_valid else {"x": 0.0, "y": 0.0, "z": 0.0},
+                "valid": saber_valid,
+                "wrist": saber.get("wrist", "") if saber_valid else "",
+            },
+            "calibration": {
+                "forwardSet": self.forward_set,
+                "saberReferenceSet": self.saber_reference_rotation is not None,
+            },
+            "metrics": self.last_metrics,
+        }
+
+    def publish_unity_pose(self) -> None:
+        self.unity_hub.send(self.build_unity_pose())
+
+    def handle_unity_command(self, message: dict[str, Any]) -> None:
+        kind = message.get("type")
+        if kind == "calibrate_forward":
+            ok, text = self.calibrate()
+            self.emit_threadsafe({"type": "notice", "ok": ok, "message": text})
+        elif kind == "calibrate_saber_reference":
+            ok, text = self.calibrate_saber_reference()
+            self.emit_threadsafe({"type": "notice", "ok": ok, "message": text})
+        elif kind == "vibrate":
+            self.send_haptic()
 
     def detect_pose_wrist(
         self,
@@ -1171,6 +1320,13 @@ class Tracker:
         if self.last_raw_yaw is None:
             return False, "No face is visible yet. Face the camera and try again."
         self.yaw_zero = self.last_raw_yaw
+        self.forward_set = True
+        if self.last_face_rotation is not None:
+            forward, up, yaw_rad = calibrated_head_axes(self.last_face_rotation, self.yaw_zero)
+            self.last_head_forward = forward
+            self.last_head_up = up
+            self.last_yaw_rad = yaw_rad
+        self.publish_unity_pose()
         return True, "Forward direction set to the current face pose."
 
     def calibrate_saber_reference(self) -> tuple[bool, str]:
@@ -1324,6 +1480,11 @@ class Tracker:
                     self.last_face_position = base_head_position
                     self.last_face_rotation = face_rotation
                     self.last_head_pose_ms = captured_ms
+                    forward, up, yaw_rad = calibrated_head_axes(face_rotation, self.yaw_zero)
+                    self.last_head_forward = forward
+                    self.last_head_up = up
+                    self.last_yaw_rad = yaw_rad
+                    self.last_head_quality = float(len(selected))
                     head_position = {
                         "x": round(float(base_head_position[0]), 4),
                         "y": round(float(base_head_position[1]), 4),
@@ -1377,6 +1538,12 @@ class Tracker:
                     "serial": self.imu_link(),
                 }
             )
+            self.last_metrics = {
+                "fps": round(self.fps_ema, 2),
+                "detectMs": round(detected_ms - captured_ms, 3),
+                "droppedCaptureFrames": dropped_frames,
+            }
+            self.publish_unity_pose()
             preview_ready = self._preview_job is None or self._preview_job.done()
             if want_preview and preview_ready:
                 face_dots = None
@@ -1552,6 +1719,7 @@ async def on_startup(app: web.Application) -> None:
     app["tracker"].loop = loop
     app["tracker"].start_osc(loop)
     app["tracker"].start_serial(loop)
+    app["tracker"].unity_hub.start(app["tracker"].handle_unity_command)
     app["capture_task"] = asyncio.create_task(app["tracker"].capture_loop(app))
 
 
@@ -1568,6 +1736,7 @@ async def on_cleanup(app: web.Application) -> None:
         app["tracker"].osc_reader.close()
     if app["tracker"].serial_reader:
         app["tracker"].serial_reader.close()
+    app["tracker"].unity_hub.close()
     app["tracker"].detect_pool.shutdown(wait=False)
     app["tracker"].preview_pool.shutdown(wait=False)
 
@@ -1600,6 +1769,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--saber-hand", choices=("auto", "left", "right"), default="auto", help="Which Pose Landmarker wrist is the saber handle")
     parser.add_argument("--pose-fps", type=float, default=12.0, help="Pose wrist rate; 0 disables Pose for lowest head-audio latency")
     parser.add_argument("--preview-fps", type=float, default=12.0, help="Diagnostic MJPEG preview rate; it is not part of audio timing")
+    parser.add_argument("--unity-host", default="127.0.0.1", help="UDP host for Unity pose packets")
+    parser.add_argument("--unity-port", type=int, default=8766, help="UDP port Unity listens on for pose")
+    parser.add_argument("--unity-command-port", type=int, default=8767, help="UDP port Python listens on for Unity commands")
     return parser.parse_args()
 
 
@@ -1629,6 +1801,7 @@ def main() -> None:
         print(
             f"Optional TouchOSC haptic: same Host, Send {args.osc_port}, Receive {args.iphone_port}."
         )
+    print(f"Unity pose UDP {args.unity_host}:{args.unity_port}  commands :{args.unity_command_port}")
     web.run_app(app, host=args.host, port=args.port, access_log=None)
 
 

@@ -15,10 +15,37 @@ __pycache__/
 .vscode/
 *.swp
 
-# Runtime cache and downloaded MediaPipe models
+# Runtime cache and downloaded third-party binaries
 .cache/
 assets/*.task
 assets/*.task.tmp
 
 # Trial / measurement exports
 *.csv
+
+# Unity generated
+unity/Library/
+unity/Temp/
+unity/Obj/
+unity/Logs/
+unity/UserSettings/
+unity/Build/
+unity/Builds/
+unity/MemoryCaptures/
+unity/Recordings/
+unity/*.csproj
+unity/*.sln
+unity/*.slnx
+unity/*.pidb
+unity/*.unityproj
+unity/*.booproj
+unity/*.svd
+unity/.vs/
+
+# Apple Unity plug-ins: built from upstream source, not committed.
+# See unity/fetch-apple-plugins.zsh
+unity/Packages/*.tgz
+unity/Assets/Apple Plug-In Support/
+
+# Editor batch logs
+unity-create.log
