@@ -1,0 +1,17 @@
+{
+    "name": "HearTheUnseen",
+    "rootNamespace": "HearTheUnseen",
+    "references": [
+        "PoseLink",
+        "BinauralHead"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,52 @@
+# Virtualenv and Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Local secrets and editor junk
+.env
+.env.*
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Runtime cache and downloaded third-party binaries
+.cache/
+assets/*.task
+assets/*.task.tmp
+
+# Trial / measurement exports
+*.csv
+
+# Unity generated
+HearTheUnseen-unity-game/Library/
+HearTheUnseen-unity-game/Temp/
+HearTheUnseen-unity-game/Obj/
+HearTheUnseen-unity-game/Logs/
+HearTheUnseen-unity-game/UserSettings/
+HearTheUnseen-unity-game/Build/
+HearTheUnseen-unity-game/Builds/
+HearTheUnseen-unity-game/MemoryCaptures/
+HearTheUnseen-unity-game/Recordings/
+HearTheUnseen-unity-game/*.csproj
+HearTheUnseen-unity-game/*.sln
+HearTheUnseen-unity-game/*.slnx
+HearTheUnseen-unity-game/*.pidb
+HearTheUnseen-unity-game/*.unityproj
+HearTheUnseen-unity-game/*.booproj
+HearTheUnseen-unity-game/*.svd
+HearTheUnseen-unity-game/.vs/
+
+# Steam Audio Unity plugin: fetched from GitHub Releases, not committed.
+# See HearTheUnseen-unity-game/fetch-steam-audio.zsh
+HearTheUnseen-unity-game/Assets/Plugins/SteamAudio/
+HearTheUnseen-unity-game/Assets/Plugins/SteamAudio.meta
+
+# Editor batch logs
+unity-create.log
+mono_crash.*.json

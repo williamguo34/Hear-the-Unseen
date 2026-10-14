@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hear the Unseen — Tracker</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">LOCAL TRACKER</p>
+        <h1>Head and saber</h1>
+        <p class="intro">Face tracking drives the headphone listener. Pose Landmarker places the handle on the wrist, and the Arduino IMU keeps it moving between camera frames. Unity reads the same pose over UDP.</p>
+      </header>
+
+      <section class="controls" aria-label="Controls">
+        <button id="audioButton" class="primary">Start audio</button>
+        <button id="calibrateButton">Set forward (C)</button>
+        <label class="check"><input id="invert" type="checkbox" /> Mirror display + audio</label>
+        <button id="sourceCalibrateButton">Set source from head</button>
+        <button id="saberCalibrateButton">Set saber reference</button>
+        <button id="magCalibrateButton">Calibrate sensors once</button>
+        <button id="hapticButton">Vibrate</button>
+      </section>
+
+      <p id="notice" class="notice">Connecting to the local tracker…</p>
+
+      <section class="cards" aria-label="Live tracker telemetry">
+        <article><span>Tracker status</span><strong id="tagStatus">waiting</strong><small id="margin">—</small></article>
+        <article><span>Head yaw</span><strong id="yaw">—</strong><small id="yawHint">calibrate while facing camera</small></article>
+        <article><span>Tracker rate</span><strong id="fps">—</strong><small id="detect">detect —</small></article>
+        <article><span>Audio device</span><strong id="audioLatency">not started</strong><small id="audioDetail">base — · output —</small></article>
+        <article><span>Saber pose</span><strong id="saberStatus">waiting</strong><small id="saberPose">wrist + IMU</small><small id="saberRelative">relative to head —</small></article>
+        <article><span>IMU / fusion</span><strong id="imuStatus">waiting</strong><small id="imuDetail">Arduino serial</small></article>
+        <article id="mpuCard" hidden><span>MPU six-axis sensor</span><strong id="mpuStatus" aria-live="polite">Waiting for data</strong><small id="mpuDetail">—</small></article>
+        <article id="magCard" hidden><span>QMC5883P magnetometer</span><strong id="magStatus" aria-live="polite">Waiting for data</strong><small id="magDetail">—</small></article>
+        <article id="magCalibrationCard" hidden>
+          <span>Sensor calibration</span><strong id="magCalibrationStatus">Not calibrated</strong>
+          <small id="magCalibrationDetail">One calibration is saved and reused. Later startups do not repeat it.</small>
+        </article>
+        <article id="magAlignmentCard" hidden>
+          <span>Magnetometer mount</span><strong id="magAlignmentStatus">Approx. 8°</strong>
+          <small id="magAlignmentDetail">Fallback twist until the one-time calibration is saved.</small>
+        </article>
+        <article id="motionCard" hidden><span>Gravity / user acceleration (g)</span><strong id="linearAcceleration">—</strong><small id="gravityVector">MPU frame · gravity points down</small></article>
+        <article id="headingCard" hidden><span>Magnetic heading (MPU +X)</span><strong id="magneticHeading">—</strong><small id="headingDetail">Waiting for valid magnetic field</small></article>
+      </section>
+
+      <section class="scene scene-3d" aria-label="Spatial audio scene">
+        <div class="world-label">3D WORLD <small>from behind you, facing the Mac · drag to orbit · not mirrored</small></div>
+        <canvas id="worldCanvas" width="1100" height="480"></canvas>
+        <p id="saberWorldLabel" class="world-saber-caption">waiting for IMU</p>
+      </section>
+
+      <figure class="camera-panel">
+        <figcaption><span>Camera preview</span><small>overlay only — not used by audio timing</small></figcaption>
+        <img id="cameraPreview" src="/preview.mjpg" alt="Live Mac camera preview with face and pose wrist overlays" />
+      </figure>
+
+      <details>
+        <summary>How to use the tracker</summary>
+        <ol>
+          <li>Use wired headphones. Start audio, then permit autoplay if the browser asks.</li>
+          <li>Face the Mac and click <em>Set forward</em>. Keep still for two seconds. <em>Mirror display + audio</em> mirrors the preview and the headphone left/right. World stays a room view from behind you.</li>
+          <li>Plug in the Arduino saber and keep shoulders and the holding hand in frame. Point the blade toward the camera, click <em>Set saber reference</em>, and keep still for two seconds. Calibrate the sensors once with the wires fixed: hold still, pause on each of the six faces, then tumble slowly away from metal.</li>
+          <li>To use an iPhone instead, start with <code>./run.zsh --iphone</code>. In ZIG SIM enable <strong>GYRO</strong>, <strong>QUATERNION</strong>, and <strong>GRAVITY</strong>.</li>
+        </ol>
+      </details>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,30 @@
+Hear the Unseen visual and audio assets. CC0 only. Not Star Wars IP.
+
+Kenney Particle Pack (selected sprites)
+https://kenney.nl/assets/particle-pack
+License: CC0 1.0
+Used for BLOCK / HIT / DODGE VFX and projectile trail.
+
+Kenney Sci-Fi Sounds
+https://kenney.nl/assets/sci-fi-sounds
+License: CC0 1.0
+Layered into saber hum / whoosh, incoming loops, launch snaps,
+block electric / spark, hit zap, and dodge pass-by. Clips are
+trimmed, EQed, pitched, and mixed; they are not used as-is.
+
+Kenney Impact Sounds
+https://kenney.nl/assets/impact-sounds
+License: CC0 1.0
+Metal hits layered into BLOCK attack transients. Soft body hits and
+low-passed punches are trimmed and mixed into the player HIT impact.
+
+Poly Haven
+metal_plate — https://polyhaven.com/a/metal_plate
+concrete_floor_worn_001 — https://polyhaven.com/a/concrete_floor_worn_001
+License: CC0 1.0
+Used as PBR albedo / normal on chamber, saber handle, and training orb.
+
+Chamber, training orb, saber, HUD, and remaining materials are original
+runtime construction. Style is "Ancient / Minimal Sci-Fi
+Training Chamber" — inspired by Quaternius / Kenney sci-fi language,
+not a reproduction of Lucasfilm / Disney assets, logos, or film audio.
